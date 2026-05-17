@@ -1,4 +1,4 @@
-const CACHE_NAME = "hesabi-pwa-v1";
+const CACHE_NAME = "hesabi-pwa-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -26,6 +26,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
+  const url = new URL(request.url);
+
+  // Never cache API responses to avoid stale auth/session issues.
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {
