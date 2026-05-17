@@ -1,0 +1,16 @@
+# Private/local runtime data
+data/
+
+# Logs
+*.log
+server.out.log
+server.err.log
+cloudflared*.log
+lt.log
+
+# Local caches
+.npm-cache/
+
+# OS/editor
+.DS_Store
+Thumbs.db

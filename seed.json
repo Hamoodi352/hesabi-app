@@ -1,0 +1,55 @@
+{
+  "settings": {
+    "businessName": "مؤسسة حسابي التجارية",
+    "businessAddress": "رام الله - شارع الإرسال",
+    "businessPhone": "0590000000",
+    "taxNumber": "VAT-123456",
+    "invoiceFooter": "شكرًا لتعاملكم معنا",
+    "currency": "₪",
+    "primaryColor": "#146c5c",
+    "moneyInColor": "#167947",
+    "moneyOutColor": "#b42318",
+    "mode": "light",
+    "logoUrl": ""
+  },
+  "currentUserId": "u-admin",
+  "users": [],
+  "categories": {
+    "expenses": ["إيجار", "رواتب", "كهرباء", "صيانة", "نقل"],
+    "income": ["مبيعات", "خدمات", "أخرى"]
+  },
+  "contacts": [
+    { "id": "c-1", "name": "شركة الهدى", "type": "customer", "phone": "022400001", "email": "", "address": "الخليل", "openingBalance": 0 },
+    { "id": "c-2", "name": "محمد سالم", "type": "customer", "phone": "0599000002", "email": "", "address": "نابلس", "openingBalance": 0 },
+    { "id": "c-3", "name": "مورد التقنية", "type": "supplier", "phone": "022400003", "email": "", "address": "رام الله", "openingBalance": 0 },
+    { "id": "c-4", "name": "شركة الإمداد", "type": "supplier", "phone": "022400004", "email": "", "address": "بيت لحم", "openingBalance": 0 }
+  ],
+  "accounts": [
+    { "id": "acc-cash", "name": "الصندوق الرئيسي", "type": "cash", "openingBalance": 1500 },
+    { "id": "acc-bank", "name": "حساب البنك", "type": "bank", "openingBalance": 5000 }
+  ],
+  "products": [
+    { "id": "p-1", "sku": "MOB-A15", "name": "جوال A15", "category": "إلكترونيات", "stock": 18, "openingStock": 15, "minStock": 6, "cost": 480, "baseCost": 480, "price": 620 },
+    { "id": "p-2", "sku": "BT-01", "name": "سماعة بلوتوث", "category": "إكسسوارات", "stock": 9, "openingStock": 2, "minStock": 10, "cost": 35, "baseCost": 35, "price": 65 },
+    { "id": "p-3", "sku": "CH-20W", "name": "شاحن سريع", "category": "إكسسوارات", "stock": 33, "openingStock": 17, "minStock": 12, "cost": 18, "baseCost": 18, "price": 35 },
+    { "id": "p-4", "sku": "LAP-01", "name": "لابتوب مكتبي", "category": "حواسيب", "stock": 4, "openingStock": 5, "minStock": 3, "cost": 1900, "baseCost": 1900, "price": 2450 }
+  ],
+  "invoices": [
+    { "id": "S-1001", "type": "sale", "contactId": "c-1", "party": "شركة الهدى", "date": "2026-05-10", "status": "paid", "notes": "", "lines": [{ "productId": "p-1", "qty": 2, "price": 620, "cost": 480 }, { "productId": "p-3", "qty": 4, "price": 35, "cost": 18 }] },
+    { "id": "S-1002", "type": "sale", "contactId": "c-2", "party": "محمد سالم", "date": "2026-05-13", "status": "partial", "notes": "", "lines": [{ "productId": "p-2", "qty": 3, "price": 65, "cost": 35 }, { "productId": "p-4", "qty": 1, "price": 2450, "cost": 1900 }] },
+    { "id": "P-5001", "type": "purchase", "contactId": "c-3", "party": "مورد التقنية", "date": "2026-05-09", "status": "paid", "notes": "", "lines": [{ "productId": "p-1", "qty": 5, "price": 480, "cost": 480 }, { "productId": "p-2", "qty": 10, "price": 35, "cost": 35 }] },
+    { "id": "P-5002", "type": "purchase", "contactId": "c-4", "party": "شركة الإمداد", "date": "2026-05-14", "status": "paid", "notes": "", "lines": [{ "productId": "p-3", "qty": 20, "price": 18, "cost": 18 }] }
+  ],
+  "payments": [
+    { "id": "PAY-1", "invoiceId": "S-1001", "accountId": "acc-bank", "date": "2026-05-11", "amount": 1380, "method": "bank", "reference": "TR-1001", "notes": "دفعة كاملة" },
+    { "id": "PAY-2", "invoiceId": "S-1002", "accountId": "acc-cash", "date": "2026-05-14", "amount": 1200, "method": "cash", "reference": "", "notes": "دفعة أولى" },
+    { "id": "PAY-3", "invoiceId": "P-5001", "accountId": "acc-bank", "date": "2026-05-09", "amount": 2750, "method": "bank", "reference": "SUP-5001", "notes": "" },
+    { "id": "PAY-4", "invoiceId": "P-5002", "accountId": "acc-cash", "date": "2026-05-14", "amount": 360, "method": "cash", "reference": "", "notes": "" }
+  ],
+  "expenses": [
+    { "id": "EXP-1", "date": "2026-05-12", "category": "نقل", "description": "توصيل بضاعة", "accountId": "acc-cash", "amount": 85, "notes": "" },
+    { "id": "EXP-2", "date": "2026-05-14", "category": "كهرباء", "description": "فاتورة كهرباء", "accountId": "acc-bank", "amount": 210, "notes": "" }
+  ],
+  "credits": [],
+  "activityLog": []
+}

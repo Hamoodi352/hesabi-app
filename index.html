@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d7a6b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="حسابي" />
+    <title>نظام الفواتير والمخزون</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <link rel="icon" href="/icon-192.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="القائمة الرئيسية">
+        <div class="brand">
+          <div class="brand-mark">ح</div>
+          <div>
+            <strong>حسابي</strong>
+            <span>مبيعات ومخزون</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item active" data-view="dashboard" title="لوحة التحكم">
+            <span class="icon">⌂</span>
+            <span>لوحة التحكم</span>
+          </button>
+          <button class="nav-item" data-view="sales" title="فواتير المبيعات">
+            <span class="icon">⇧</span>
+            <span>المبيعات</span>
+          </button>
+          <button class="nav-item" data-view="purchases" title="فواتير المشتريات">
+            <span class="icon">⇩</span>
+            <span>المشتريات</span>
+          </button>
+          <button class="nav-item" data-view="payments" title="موقف المدفوعات">
+            <span class="icon">₪</span>
+            <span>المدفوعات</span>
+          </button>
+          <button class="nav-item" data-view="contacts" title="العملاء والموردين">
+            <span class="icon">◎</span>
+            <span>الأطراف</span>
+          </button>
+          <button class="nav-item" data-view="inventory" title="المخزون">
+            <span class="icon">▦</span>
+            <span>المخزون</span>
+          </button>
+          <button class="nav-item" data-view="expenses" title="المصروفات">
+            <span class="icon">−</span>
+            <span>المصروفات</span>
+          </button>
+          <button class="nav-item" data-view="cash" title="الصندوق والبنك">
+            <span class="icon">▣</span>
+            <span>الصندوق</span>
+          </button>
+          <button class="nav-item" data-view="reports" title="التقارير">
+            <span class="icon">◷</span>
+            <span>التقارير</span>
+          </button>
+          <button class="nav-item" data-view="activity" title="سجل النشاط">
+            <span class="icon">≡</span>
+            <span>النشاط</span>
+          </button>
+          <button class="nav-item" data-view="settings" title="الإعدادات">
+            <span class="icon">⚙</span>
+            <span>الإعدادات</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span>حفظ تلقائي</span>
+          <strong id="saveState">جاهز</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="viewKicker">نظرة عامة</p>
+            <h1 id="viewTitle">لوحة التحكم</h1>
+          </div>
+          <div class="top-actions">
+            <label class="search-box" title="بحث">
+              <span>⌕</span>
+              <input id="globalSearch" type="search" placeholder="ابحث عن فاتورة أو صنف..." />
+            </label>
+            <button class="ghost-btn" id="exportBtn" title="تصدير البيانات">⇪</button>
+            <button class="primary-btn" id="quickSaleBtn"><span>＋</span> فاتورة بيع</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboardView">
+          <div class="metric-grid" id="metrics"></div>
+
+          <div class="dashboard-grid">
+            <section class="panel wide">
+              <div class="panel-head">
+                <div>
+                  <h2>حركة آخر 7 أيام</h2>
+                  <p>مبيعات، مشتريات، وربح صافي</p>
+                </div>
+                <div class="segmented" id="chartMode">
+                  <button class="selected" data-mode="net">الربح</button>
+                  <button data-mode="sales">المبيعات</button>
+                  <button data-mode="purchases">المشتريات</button>
+                </div>
+              </div>
+              <canvas id="trendChart" width="900" height="320" aria-label="رسم بياني"></canvas>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>تنبيهات المخزون</h2>
+                  <p>الأصناف التي تحتاج متابعة</p>
+                </div>
+              </div>
+              <div id="stockAlerts" class="alert-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="salesView">
+          <div class="section-head">
+            <div>
+              <h2>فواتير المبيعات</h2>
+              <p>إنشاء، تعديل، وطباعة فواتير البيع</p>
+            </div>
+            <button class="primary-btn" data-open-invoice="sale"><span>＋</span> فاتورة بيع</button>
+          </div>
+          <div class="toolbar">
+            <select id="salesStatusFilter">
+              <option value="all">كل الحالات</option>
+              <option value="paid">مسددة</option>
+              <option value="partial">جزئية</option>
+              <option value="due">غير مدفوعة</option>
+            </select>
+            <button class="ghost-btn" id="clearSalesFilter">مسح</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>رقم</th>
+                  <th>العميل</th>
+                  <th>التاريخ</th>
+                  <th>الحالة</th>
+                  <th>الإجمالي</th>
+                  <th>المدفوع</th>
+                  <th>المتبقي</th>
+                  <th>الربح</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="salesTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="purchasesView">
+          <div class="section-head">
+            <div>
+              <h2>فواتير المشتريات</h2>
+              <p>إدخال مشتريات الموردين وتحديث الكلفة والمخزون</p>
+            </div>
+            <button class="primary-btn" data-open-invoice="purchase"><span>＋</span> فاتورة شراء</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>رقم</th>
+                  <th>المورد</th>
+                  <th>التاريخ</th>
+                  <th>الأصناف</th>
+                  <th>الإجمالي</th>
+                  <th>المدفوع</th>
+                  <th>المتبقي</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="purchasesTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="paymentsView">
+          <div class="section-head">
+            <div>
+              <h2>موقف المدفوعات</h2>
+              <p>متابعة المقبوضات من العملاء والمدفوعات للموردين حسب كل فاتورة</p>
+            </div>
+            <button class="primary-btn" id="addGeneralPaymentBtn"><span>＋</span> تسجيل دفعة</button>
+          </div>
+          <div class="metric-grid" id="paymentMetrics"></div>
+          <div class="toolbar">
+            <select id="paymentTypeFilter">
+              <option value="all">كل الفواتير</option>
+              <option value="sale">مقبوضات العملاء</option>
+              <option value="purchase">مدفوعات الموردين</option>
+            </select>
+            <select id="paymentStatusFilter">
+              <option value="all">كل الحالات</option>
+              <option value="paid">مسددة</option>
+              <option value="partial">مدفوعة جزئيًا</option>
+              <option value="due">غير مدفوعة</option>
+            </select>
+          </div>
+          <div class="payments-layout">
+            <section class="panel wide">
+              <h2>الفواتير والمتبقي</h2>
+              <div class="table-wrap plain">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>الفاتورة</th>
+                      <th>النوع</th>
+                      <th>الطرف</th>
+                      <th>الإجمالي</th>
+                      <th>المدفوع</th>
+                      <th>المتبقي</th>
+                      <th>الحالة</th>
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="paymentsTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel">
+              <h2>آخر الدفعات</h2>
+              <div id="recentPayments" class="payment-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="contactsView">
+          <div class="section-head">
+            <div>
+              <h2>العملاء والموردين</h2>
+              <p>ملفات الأطراف، أرصدتهم، وكشف حساب مختصر لكل طرف</p>
+            </div>
+            <button class="primary-btn" id="addContactBtn"><span>＋</span> طرف جديد</button>
+          </div>
+          <div class="metric-grid" id="contactMetrics"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>النوع</th>
+                  <th>الهاتف</th>
+                  <th>الرصيد</th>
+                  <th>آخر حركة</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="contactsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="inventoryView">
+          <div class="section-head">
+            <div>
+              <h2>المخزون</h2>
+              <p>إدارة الأصناف، أسعار البيع، وحدود التنبيه</p>
+            </div>
+            <button class="primary-btn" id="addProductBtn"><span>＋</span> صنف جديد</button>
+          </div>
+          <div class="inventory-grid" id="inventoryGrid"></div>
+        </section>
+
+        <section class="view" id="expensesView">
+          <div class="section-head">
+            <div>
+              <h2>المصروفات</h2>
+              <p>تسجيل المصروفات العامة وربطها بالصندوق أو البنك</p>
+            </div>
+            <button class="primary-btn" id="addExpenseBtn"><span>＋</span> مصروف جديد</button>
+          </div>
+          <div class="metric-grid" id="expenseMetrics"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>التصنيف</th>
+                  <th>الوصف</th>
+                  <th>الحساب</th>
+                  <th>المبلغ</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="expensesTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="cashView">
+          <div class="section-head">
+            <div>
+              <h2>الصندوق والبنك</h2>
+              <p>أرصدة الحسابات وحركة القبض والدفع والمصروفات</p>
+            </div>
+            <button class="primary-btn" id="addAccountBtn"><span>＋</span> حساب جديد</button>
+          </div>
+          <div class="inventory-grid" id="accountGrid"></div>
+          <section class="panel">
+            <h2>حركة الحسابات</h2>
+            <div class="table-wrap plain">
+              <table>
+                <thead>
+                  <tr>
+                    <th>التاريخ</th>
+                    <th>الحساب</th>
+                    <th>البيان</th>
+                    <th>داخل</th>
+                    <th>خارج</th>
+                    <th>المرجع</th>
+                  </tr>
+                </thead>
+                <tbody id="accountTransactionsTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="reportsView">
+          <div class="section-head">
+            <div>
+              <h2>التقارير</h2>
+              <p>ملخص الأرباح، أفضل الأصناف، وحركة النقد</p>
+            </div>
+            <div class="report-range">
+              <input id="reportFrom" type="date" />
+              <input id="reportTo" type="date" />
+              <button class="ghost-btn" id="applyReport">تطبيق</button>
+            </div>
+          </div>
+          <div class="toolbar report-buttons">
+            <button class="ghost-btn" data-open-report="sales">تقرير المبيعات</button>
+            <button class="ghost-btn" data-open-report="purchases">تقرير المشتريات</button>
+            <button class="ghost-btn" data-open-report="expenses">تقرير المصروفات</button>
+            <button class="ghost-btn" data-open-report="profit">تقرير الأرباح</button>
+            <button class="ghost-btn" data-open-report="customers">تقرير العملاء</button>
+            <button class="ghost-btn" data-open-report="suppliers">تقرير الموردين</button>
+          </div>
+          <div class="report-layout">
+            <section class="panel">
+              <h2>ملخص الفترة</h2>
+              <div id="reportSummary" class="summary-list"></div>
+            </section>
+            <section class="panel wide">
+              <h2>أفضل الأصناف مبيعًا</h2>
+              <div class="table-wrap plain">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>الصنف</th>
+                      <th>الكمية</th>
+                      <th>الإيراد</th>
+                      <th>الربح</th>
+                    </tr>
+                  </thead>
+                  <tbody id="topProductsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="activityView">
+          <div class="section-head">
+            <div>
+              <h2>سجل النشاط</h2>
+              <p>من أضاف أو عدّل أو حذف داخل البرنامج</p>
+            </div>
+            <button class="ghost-btn danger" id="clearActivityBtn">مسح السجل</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الوقت</th>
+                  <th>المستخدم</th>
+                  <th>الإجراء</th>
+                  <th>التفاصيل</th>
+                </tr>
+              </thead>
+              <tbody id="activityTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="settingsView">
+          <div class="section-head">
+            <div>
+              <h2>الإعدادات</h2>
+              <p>بيانات المنشأة وخيارات النسخ الاحتياطي</p>
+            </div>
+          </div>
+          <section class="panel settings-panel">
+            <label>
+              اسم المنشأة
+              <input id="businessName" type="text" placeholder="مثال: مؤسسة النور التجارية" />
+            </label>
+            <label>
+              العنوان
+              <input id="businessAddress" type="text" placeholder="المدينة، الشارع" />
+            </label>
+            <label>
+              الهاتف
+              <input id="businessPhone" type="text" placeholder="0590000000" />
+            </label>
+            <label>
+              الرقم الضريبي
+              <input id="taxNumber" type="text" placeholder="اختياري" />
+            </label>
+            <label>
+              العملة
+              <input id="currencySymbol" type="text" maxlength="6" />
+            </label>
+            <label>
+              ملاحظات أسفل الفاتورة
+              <input id="invoiceFooter" type="text" placeholder="شكرًا لتعاملكم معنا" />
+            </label>
+            <label>
+              رابط شعار الشركة
+              <input id="logoUrl" type="text" placeholder="اختياري" />
+            </label>
+            <label>
+              قالب الطباعة
+              <select id="invoiceTemplate">
+                <option value="official">رسمي</option>
+                <option value="modern">حديث</option>
+                <option value="minimal">مبسّط</option>
+              </select>
+            </label>
+            <label>
+              اللون الأساسي
+              <input id="primaryColor" type="color" />
+            </label>
+            <label>
+              لون المبالغ المطلوبة لي
+              <input id="moneyInColor" type="color" />
+            </label>
+            <label>
+              لون المبالغ المطلوبة مني
+              <input id="moneyOutColor" type="color" />
+            </label>
+            <label>
+              وضع الواجهة
+              <select id="modeSelect">
+                <option value="light">Light Mode</option>
+                <option value="dark">Dark Mode</option>
+              </select>
+            </label>
+            <label>
+              المستخدم الحالي
+              <select id="currentUserSelect"></select>
+            </label>
+            <div class="settings-actions">
+              <button class="primary-btn" id="saveSettings">حفظ الإعدادات</button>
+              <button class="ghost-btn" id="backupBtn">نسخة احتياطية</button>
+              <label class="ghost-btn file-action">
+                استرجاع نسخة
+                <input id="restoreBackup" type="file" accept="application/json" hidden />
+              </label>
+              <button class="ghost-btn danger" id="resetDemo">إعادة البيانات التجريبية</button>
+            </div>
+          </section>
+          <section class="panel settings-panel">
+            <h2>الصلاحيات</h2>
+            <div class="table-wrap plain">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المستخدم</th>
+                    <th>الدور</th>
+                    <th>الصلاحيات</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-head">
+          <div>
+            <p id="modalKicker">فاتورة</p>
+            <h2 id="modalTitle">فاتورة جديدة</h2>
+          </div>
+          <button class="icon-btn" id="closeModal" title="إغلاق">×</button>
+        </div>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <template id="invoiceFormTemplate">
+      <form class="invoice-form" id="invoiceForm">
+        <div class="form-grid">
+          <label>
+            الطرف
+            <select name="contactId"></select>
+          </label>
+          <label>
+            اسم يدوي
+            <input name="party" placeholder="استخدمه إذا لم تختر طرفًا" />
+          </label>
+          <label>
+            التاريخ
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            الحالة
+            <select name="status">
+              <option value="paid">مسددة</option>
+              <option value="partial">جزئية</option>
+              <option value="due">غير مدفوعة</option>
+            </select>
+          </label>
+          <label>
+            ملاحظات
+            <input name="notes" />
+          </label>
+          <label>
+            الخصم
+            <input name="discount" type="number" min="0" step="0.01" value="0" />
+          </label>
+          <label>
+            الضريبة %
+            <input name="taxRate" type="number" min="0" step="0.01" value="0" />
+          </label>
+        </div>
+
+        <div class="invoice-lines">
+          <div class="lines-head">
+            <strong>الأصناف</strong>
+            <button type="button" class="ghost-btn" id="addLine">＋ إضافة صنف</button>
+          </div>
+          <div id="linesContainer"></div>
+        </div>
+
+        <div class="invoice-total">
+          <span>الإجمالي</span>
+          <strong id="invoiceTotal">0</strong>
+        </div>
+        <div class="payment-snapshot" id="invoicePaymentSnapshot"></div>
+        <div class="print-invoice print-only" id="printableInvoice"></div>
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="closeInvoiceForm">إغلاق</button>
+          <button type="button" class="ghost-btn" id="addPaymentFromInvoice" hidden>تسجيل دفعة</button>
+          <button type="button" class="ghost-btn" id="printInvoice">طباعة</button>
+          <button type="submit" class="primary-btn">حفظ الفاتورة</button>
+        </div>
+      </form>
+    </template>
+
+    <template id="paymentFormTemplate">
+      <form class="payment-form" id="paymentForm">
+        <div class="payment-invoice-card" id="paymentInvoiceCard"></div>
+        <div class="form-grid">
+          <label>
+            الفاتورة
+            <select name="invoiceId" required></select>
+          </label>
+          <label>
+            التاريخ
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            المبلغ
+            <input name="amount" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            طريقة الدفع
+            <select name="method">
+              <option value="cash">نقدًا</option>
+              <option value="card">بطاقة</option>
+              <option value="bank">تحويل بنكي</option>
+              <option value="check">شيك</option>
+            </select>
+          </label>
+          <label>
+            الحساب
+            <select name="accountId" required></select>
+          </label>
+          <label>
+            رقم المرجع
+            <input name="reference" placeholder="اختياري" />
+          </label>
+          <label>
+            ملاحظات
+            <input name="notes" placeholder="اختياري" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-btn">حفظ الدفعة</button>
+        </div>
+      </form>
+    </template>
+
+    <template id="contactFormTemplate">
+      <form class="contact-form" id="contactForm">
+        <div class="form-grid">
+          <label>
+            الاسم
+            <input name="name" required />
+          </label>
+          <label>
+            النوع
+            <select name="type">
+              <option value="customer">عميل</option>
+              <option value="supplier">مورد</option>
+              <option value="both">عميل ومورد</option>
+            </select>
+          </label>
+          <label>
+            الهاتف
+            <input name="phone" />
+          </label>
+          <label>
+            البريد
+            <input name="email" type="email" />
+          </label>
+          <label>
+            العنوان
+            <input name="address" />
+          </label>
+          <label>
+            رصيد افتتاحي
+            <input name="openingBalance" type="number" step="0.01" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-btn">حفظ الطرف</button>
+        </div>
+      </form>
+    </template>
+
+    <template id="expenseFormTemplate">
+      <form class="expense-form" id="expenseForm">
+        <div class="form-grid">
+          <label>
+            التاريخ
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            التصنيف
+            <input name="category" list="expenseCategoryList" placeholder="إيجار، رواتب، نقل..." />
+            <datalist id="expenseCategoryList"></datalist>
+          </label>
+          <label>
+            الوصف
+            <input name="description" />
+          </label>
+          <label>
+            الحساب
+            <select name="accountId" required></select>
+          </label>
+          <label>
+            المبلغ
+            <input name="amount" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            ملاحظات
+            <input name="notes" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-btn">حفظ المصروف</button>
+        </div>
+      </form>
+    </template>
+
+    <template id="accountFormTemplate">
+      <form class="account-form" id="accountForm">
+        <div class="form-grid">
+          <label>
+            اسم الحساب
+            <input name="name" required />
+          </label>
+          <label>
+            النوع
+            <select name="type">
+              <option value="cash">صندوق</option>
+              <option value="bank">بنك</option>
+            </select>
+          </label>
+          <label>
+            رصيد افتتاحي
+            <input name="openingBalance" type="number" step="0.01" required />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-btn">حفظ الحساب</button>
+        </div>
+      </form>
+    </template>
+
+    <template id="productFormTemplate">
+      <form class="product-form" id="productForm">
+        <div class="form-grid">
+          <label>
+            SKU / باركود
+            <input name="sku" />
+          </label>
+          <label>
+            اسم الصنف
+            <input name="name" required />
+          </label>
+          <label>
+            التصنيف
+            <input name="category" required />
+          </label>
+          <label>
+            الكمية الحالية
+            <input name="stock" type="number" min="0" step="1" required />
+          </label>
+          <label>
+            حد التنبيه
+            <input name="minStock" type="number" min="0" step="1" required />
+          </label>
+          <label>
+            كلفة الوحدة
+            <input name="cost" type="number" min="0" step="0.01" required />
+          </label>
+          <label>
+            سعر البيع
+            <input name="price" type="number" min="0" step="0.01" required />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="primary-btn">حفظ الصنف</button>
+        </div>
+      </form>
+    </template>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
