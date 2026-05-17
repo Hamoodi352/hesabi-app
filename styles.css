@@ -1020,6 +1020,10 @@ td.actions {
     padding: 14px;
   }
 
+  .view {
+    overflow-x: hidden;
+  }
+
   .metric-grid,
   .dashboard-grid,
   .report-layout,
@@ -1038,8 +1042,14 @@ td.actions {
     align-items: center;
   }
 
+  #exportBtn,
+  #quickSaleBtn {
+    min-height: 48px;
+  }
+
   .top-actions .search-box {
     grid-column: 1 / -1;
+    min-height: 48px;
   }
 
   .topbar h1 {
@@ -1048,8 +1058,12 @@ td.actions {
   }
 
   .panel-head h2 {
-    font-size: 34px;
+    font-size: clamp(28px, 8vw, 34px);
     line-height: 1.2;
+  }
+
+  .panel-head p {
+    font-size: 18px;
   }
 
   .segmented {
@@ -1071,9 +1085,130 @@ td.actions {
     height: 240px;
   }
 
+  .toolbar,
+  .report-range,
+  .settings-actions,
+  .modal-actions,
+  .product-actions,
+  td.actions {
+    flex-wrap: wrap;
+  }
+
+  td.actions .ghost-btn,
+  td.actions .icon-btn,
+  .toolbar .ghost-btn,
+  .toolbar .primary-btn,
+  .report-range .ghost-btn,
+  .report-range .primary-btn {
+    min-height: 44px;
+  }
+
+  table {
+    min-width: 680px;
+  }
+
+  .metric-card strong {
+    font-size: clamp(24px, 8vw, 32px);
+  }
+
+  .metric-card {
+    padding: 14px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .modal-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .modal-head {
+    padding: 14px;
+  }
+
+  #modalBody {
+    padding: 14px;
+    max-height: calc(100dvh - 74px);
+  }
+
+  .invoice-total strong {
+    font-size: 24px;
+  }
+
+  .payment-snapshot > div,
+  .payment-invoice-card > div,
+  .statement-head div {
+    padding: 10px;
+  }
+
   .lines-head,
   .line-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace {
+    padding: 10px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  .topbar h1 {
+    font-size: clamp(30px, 10vw, 40px);
+  }
+
+  .topbar p,
+  .section-head p,
+  .panel-head p {
+    font-size: 16px;
+  }
+
+  .top-actions {
+    grid-template-columns: 1fr;
+  }
+
+  #exportBtn,
+  #quickSaleBtn {
+    width: 100%;
+  }
+
+  .search-box {
+    min-height: 46px;
+  }
+
+  .metric-grid,
+  .dashboard-grid,
+  .report-layout,
+  .payments-layout,
+  .payment-snapshot,
+  .payment-invoice-card,
+  .statement-head,
+  .form-grid {
+    gap: 10px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .primary-btn,
+  .ghost-btn {
+    min-height: 46px;
+    padding-inline: 12px;
   }
 }
 
