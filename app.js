@@ -615,11 +615,11 @@ function renderPayments() {
       const invoice = findInvoice(payment.invoiceId);
       return invoice && (typeFilter === "all" || invoice.type === typeFilter) && matchesInvoice(invoice, query);
     })
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => paymentOrderValue(b) - paymentOrderValue(a))
     .slice(0, 10);
 
   els.recentPayments.innerHTML = recent.length
-    ? recent.map((payment) => paymentListItem(payment)).join("")
+    ? recent.map((payment) => paymentListItemV2(payment)).join("")
     : `<div class="payment-item"><div><strong>لا توجد دفعات</strong><span>سجل دفعة من أي فاتورة</span></div></div>`;
   bindRowActions();
   bindPaymentActions();
@@ -1110,7 +1110,7 @@ function refreshInvoicePaymentSnapshot(invoice) {
     snapshot.innerHTML = `<div><span>الدفعات</span><strong>احفظ الفاتورة أولًا لتسجيل الدفعات</strong></div>`;
     return;
   }
-  const payments = paymentsForInvoice(invoice.id).sort((a, b) => b.date.localeCompare(a.date));
+  const payments = paymentsForInvoice(invoice.id).sort((a, b) => paymentOrderValue(b) - paymentOrderValue(a));
   snapshot.innerHTML = `
     <div><span>إجمالي الفاتورة</span><strong>${money(invoiceTotal(invoice))}</strong></div>
     <div><span>المدفوع</span><strong>${money(invoicePaid(invoice))}</strong></div>
@@ -1336,10 +1336,13 @@ function savePayment(form) {
   }
 
   state.payments.push({
-    id: `PAY-${Date.now()}`,
+    id: nextPaymentId(),
+    paymentNo: nextPaymentNo(),
     invoiceId: invoice.id,
     accountId: form.accountId.value,
     date: form.date.value,
+    createdAt: new Date().toISOString(),
+    createdAtMs: Date.now(),
     amount,
     method: form.method.value,
     reference: form.reference.value.trim(),
@@ -1889,9 +1892,12 @@ function normalizeState(data) {
       if (amount > 0) {
         data.payments.push({
           id: `PAY-MIG-${invoice.id}`,
+          paymentNo: `PAY-MIG-${invoice.id}`,
           invoiceId: invoice.id,
           accountId: data.accounts[0]?.id || "acc-cash",
           date: invoice.date || today,
+          createdAt: new Date(Date.parse(`${invoice.date || today}T00:00:00`) || Date.now()).toISOString(),
+          createdAtMs: Date.parse(`${invoice.date || today}T00:00:00`) || Date.now(),
           amount,
           method: "cash",
           reference: "",
@@ -1902,6 +1908,12 @@ function normalizeState(data) {
   });
   data.payments.forEach((payment) => {
     payment.accountId ||= defaultAccountForMethod(payment.method, data);
+    payment.paymentNo ||= payment.id || `PAY-${Date.now()}`;
+    if (!payment.createdAtMs) {
+      const ms = payment.createdAt ? Date.parse(payment.createdAt) : Date.parse(`${payment.date || today}T00:00:00`);
+      payment.createdAtMs = !Number.isNaN(ms) ? ms : Date.now();
+    }
+    payment.createdAt ||= new Date(payment.createdAtMs).toISOString();
   });
   data.expenses.forEach((expense) => {
     expense.accountId ||= data.accounts[0]?.id || "acc-cash";
@@ -2167,6 +2179,20 @@ function paymentListItem(payment) {
     </div>`;
 }
 
+function paymentListItemV2(payment) {
+  const invoice = findInvoice(payment.invoiceId);
+  const serial = escapeHtml(payment.paymentNo || payment.id || "-");
+  return `
+    <div class="payment-item">
+      <div>
+        <strong>${money(payment.amount)}</strong>
+        <span>${serial} - ${invoice?.id || "فاتورة محذوفة"} - ${invoice ? partyName(invoice) : ""}</span>
+        <small>${paymentTimestampLabel(payment)} · ${methodLabel(payment.method)} · ${escapeHtml(findAccount(payment.accountId)?.name || "-")}</small>
+      </div>
+      ${can("payment:delete") ? `<button class="icon-btn" data-delete-payment="${payment.id}" title="حذف الدفعة">×</button>` : ""}
+    </div>`;
+}
+
 function rowActions(id) {
   return `
     <button class="ghost-btn" data-view-invoice="${id}">عرض</button>
@@ -2182,6 +2208,45 @@ function nextInvoiceId(type) {
   const floor = type === "sale" ? 1000 : 5000;
   const current = state.invoices.filter((invoice) => invoice.type === type).map((invoice) => Number(String(invoice.id).split("-")[1]) || 0);
   return `${prefix}-${Math.max(...current, floor) + 1}`;
+}
+
+function nextPaymentNo() {
+  const max = state.payments.reduce((m, payment) => {
+    const digits = String(payment.paymentNo || payment.id || "").replace(/[^\d]/g, "");
+    return Math.max(m, Number(digits) || 0);
+  }, 0);
+  return `PAY-${String(max + 1).padStart(6, "0")}`;
+}
+
+function nextPaymentId() {
+  return `PMT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
+function paymentOrderValue(payment) {
+  if (Number.isFinite(Number(payment.createdAtMs))) return Number(payment.createdAtMs);
+  if (payment.createdAt) {
+    const ms = Date.parse(payment.createdAt);
+    if (!Number.isNaN(ms)) return ms;
+  }
+  if (payment.date) {
+    const ms = Date.parse(`${payment.date}T00:00:00`);
+    if (!Number.isNaN(ms)) return ms;
+  }
+  return 0;
+}
+
+function paymentTimestampLabel(payment) {
+  const ms = paymentOrderValue(payment);
+  if (!ms) return payment.date || "-";
+  return new Intl.DateTimeFormat("ar", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(ms));
 }
 
 function statusBadge(status) {
