@@ -125,6 +125,10 @@ let reportRange = { from: dateOffset(-30), to: today };
 let syncTimer = null;
 let isSyncingState = false;
 let lastSyncedSignature = "";
+let stateStream = null;
+let streamReconnectTimer = null;
+let streamConnected = false;
+let visibilitySyncBound = false;
 
 const els = {};
 
@@ -150,6 +154,7 @@ function cacheElements() {
     "viewKicker",
     "viewTitle",
     "globalSearch",
+    "logoutBtn",
     "exportBtn",
     "quickSaleBtn",
     "metrics",
@@ -250,6 +255,7 @@ function bindEvents() {
   document.querySelectorAll("[data-open-report]").forEach((btn) => btn.addEventListener("click", () => openDetailedReport(btn.dataset.openReport)));
 
   on(els.exportBtn, "click", exportData);
+  on(els.logoutBtn, "click", logoutUser);
   on(els.backupBtn, "click", exportData);
   on(els.restoreBackup, "change", restoreData);
   on(els.applyReport, "click", () => {
@@ -265,6 +271,20 @@ function bindEvents() {
 
 function on(element, event, handler) {
   if (element) element.addEventListener(event, handler);
+}
+
+function logoutUser() {
+  authToken = "";
+  authUser = null;
+  closeStateStream();
+  if (syncTimer) {
+    clearInterval(syncTimer);
+    syncTimer = null;
+  }
+  try {
+    localStorage.removeItem("invoice_auth_token");
+  } catch {}
+  location.reload();
 }
 
 async function bootstrapBackendSession() {
@@ -305,10 +325,57 @@ function showLoginScreen() {
           <input name="password" type="password" value="admin123" required />
         </label>
         <button class="primary-btn" type="submit">دخول</button>
+        <button class="ghost-btn" type="button" id="openSignupBtn">إنشاء حساب جديد</button>
+        <button class="ghost-btn" type="button" id="openVerifyBtn">تفعيل حساب</button>
         <p id="loginError"></p>
+      </form>
+      <form class="login-card" id="signupForm" hidden>
+        <h3>إنشاء حساب جديد</h3>
+        <label>
+          الاسم
+          <input name="name" type="text" required />
+        </label>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          كلمة المرور
+          <input name="password" type="password" minlength="6" required />
+        </label>
+        <button class="primary-btn" type="submit">إرسال كود التحقق</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromSignup">رجوع للدخول</button>
+        <p id="signupMsg"></p>
+      </form>
+      <form class="login-card" id="verifyForm" hidden>
+        <h3>تفعيل الحساب</h3>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          كود التحقق
+          <input name="code" type="text" inputmode="numeric" required />
+        </label>
+        <button class="primary-btn" type="submit">تفعيل الحساب</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromVerify">رجوع للدخول</button>
+        <p id="verifyMsg"></p>
       </form>
     </main>
   `;
+  const loginForm = document.getElementById("loginForm");
+  const signupForm = document.getElementById("signupForm");
+  const verifyForm = document.getElementById("verifyForm");
+  const showForm = (target) => {
+    loginForm.hidden = target !== "login";
+    signupForm.hidden = target !== "signup";
+    verifyForm.hidden = target !== "verify";
+  };
+  document.getElementById("openSignupBtn").addEventListener("click", () => showForm("signup"));
+  document.getElementById("openVerifyBtn").addEventListener("click", () => showForm("verify"));
+  document.getElementById("backToLoginFromSignup").addEventListener("click", () => showForm("login"));
+  document.getElementById("backToLoginFromVerify").addEventListener("click", () => showForm("login"));
+
   document.getElementById("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -323,6 +390,41 @@ function showLoginScreen() {
       location.reload();
     } catch (error) {
       document.getElementById("loginError").textContent = error.message || "فشل تسجيل الدخول";
+    }
+  });
+  document.getElementById("signupForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("signupMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/signup", {
+        method: "POST",
+        body: JSON.stringify({ name: form.name.value, email: form.email.value, password: form.password.value }),
+      });
+      msg.textContent = result.delivery === "code" && result.debugCode ? `كود التفعيل: ${result.debugCode}` : (result.message || "تم إرسال كود التحقق");
+      verifyForm.email.value = form.email.value;
+      showForm("verify");
+    } catch (error) {
+      msg.textContent = error.message || "تعذر إنشاء الحساب";
+    }
+  });
+  document.getElementById("verifyForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("verifyMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/verify-email", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.value, code: form.code.value }),
+      });
+      msg.textContent = result.message || "تم التفعيل. يمكنك تسجيل الدخول الآن.";
+      showForm("login");
+      loginForm.email.value = form.email.value;
+      loginForm.password.focus();
+    } catch (error) {
+      msg.textContent = error.message || "فشل التفعيل";
     }
   });
 }
@@ -1867,11 +1969,56 @@ function stateSignature(value) {
 function startRealtimeSync() {
   if (!USE_BACKEND) return;
   if (syncTimer) clearInterval(syncTimer);
+  if (streamReconnectTimer) {
+    clearTimeout(streamReconnectTimer);
+    streamReconnectTimer = null;
+  }
+  closeStateStream();
   lastSyncedSignature = stateSignature(state);
-  syncTimer = setInterval(syncStateFromBackend, 3500);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") syncStateFromBackend();
-  });
+  connectStateStream();
+  syncTimer = setInterval(() => {
+    if (!streamConnected) syncStateFromBackend();
+  }, 1000);
+  if (!visibilitySyncBound) {
+    visibilitySyncBound = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") syncStateFromBackend();
+    });
+  }
+}
+
+function connectStateStream() {
+  if (!USE_BACKEND || !authToken || stateStream) return;
+  try {
+    stateStream = new EventSource(`/api/stream?token=${encodeURIComponent(authToken)}`);
+    stateStream.addEventListener("ready", () => {
+      streamConnected = true;
+    });
+    stateStream.addEventListener("state", () => {
+      syncStateFromBackend();
+    });
+    stateStream.onerror = () => {
+      streamConnected = false;
+      closeStateStream();
+      if (!streamReconnectTimer) {
+        streamReconnectTimer = setTimeout(() => {
+          streamReconnectTimer = null;
+          connectStateStream();
+        }, 1200);
+      }
+    };
+  } catch {
+    streamConnected = false;
+  }
+}
+
+function closeStateStream() {
+  if (!stateStream) return;
+  try {
+    stateStream.close();
+  } catch {}
+  stateStream = null;
+  streamConnected = false;
 }
 
 async function syncStateFromBackend() {
