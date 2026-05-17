@@ -3,6 +3,7 @@ const LEGACY_STORAGE_KEY = "arabic_invoice_suite_v1";
 const USE_BACKEND = typeof location !== "undefined" && /^https?:$/.test(location.protocol);
 const today = new Date().toISOString().slice(0, 10);
 const dayMs = 24 * 60 * 60 * 1000;
+const VIEW_STORAGE_KEY = "hesabi_active_view";
 
 const demoData = {
   settings: {
@@ -133,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   hydrateSettings();
   applyTheme();
+  switchView(getInitialView(), { persist: false, skipRender: true });
   recalculateInventory();
   render();
   registerPwa();
@@ -254,6 +256,7 @@ function bindEvents() {
   on(els.saveSettings, "click", saveSettings);
   on(els.resetDemo, "click", resetDemoData);
   on(els.clearActivityBtn, "click", clearActivityLog);
+  window.addEventListener("hashchange", () => switchView(getInitialView(), { persist: false }));
 }
 
 function on(element, event, handler) {
@@ -334,7 +337,8 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-function switchView(view) {
+function switchView(view, options = {}) {
+  const { persist = true, skipRender = false } = options;
   if (!canView(view)) {
     toast("ليس لديك صلاحية فتح هذه الشاشة");
     view = "dashboard";
@@ -359,7 +363,28 @@ function switchView(view) {
   };
   els.viewKicker.textContent = titles[view]?.[0] || "";
   els.viewTitle.textContent = titles[view]?.[1] || "";
-  render();
+  if (persist) {
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {}
+    if (typeof location !== "undefined" && location.hash !== `#${view}`) {
+      history.replaceState(null, "", `#${view}`);
+    }
+  }
+  if (!skipRender) render();
+}
+
+function getInitialView() {
+  const fromHash = typeof location !== "undefined" ? (location.hash || "").replace("#", "").trim() : "";
+  const fromStorage = (() => {
+    try {
+      return localStorage.getItem(VIEW_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  })();
+  const candidate = fromHash || fromStorage || activeView || "dashboard";
+  return canView(candidate) ? candidate : "dashboard";
 }
 
 function hydrateSettings() {
