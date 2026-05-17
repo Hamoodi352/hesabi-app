@@ -582,7 +582,13 @@ function applyTheme() {
 
 function registerPwa() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register("/sw.js?v=20260517-2").then((registration) => registration.update()).catch(() => {});
 }
 
 function renderMetrics() {

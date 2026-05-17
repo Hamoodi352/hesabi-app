@@ -1,4 +1,4 @@
-const CACHE_NAME = "hesabi-pwa-v2";
+const CACHE_NAME = "hesabi-pwa-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -34,16 +34,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isAppShell = APP_SHELL.includes(url.pathname) || url.pathname === "/";
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match("/index.html"));
-    }),
+    fetch(request)
+      .then((response) => {
+        const copy = response.clone();
+        if (isAppShell) caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        return response;
+      })
+      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html"))),
   );
 });
