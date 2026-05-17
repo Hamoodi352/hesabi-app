@@ -122,6 +122,9 @@ let editingContactId = null;
 let editingAccountId = null;
 let chartMode = "net";
 let reportRange = { from: dateOffset(-30), to: today };
+let syncTimer = null;
+let isSyncingState = false;
+let lastSyncedSignature = "";
 
 const els = {};
 
@@ -138,6 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   recalculateInventory();
   render();
   registerPwa();
+  startRealtimeSync();
 });
 
 function cacheElements() {
@@ -1833,6 +1837,7 @@ async function saveStateToBackend(message) {
   try {
     els.saveState.textContent = "جار الحفظ";
     await apiFetch("/api/state", { method: "PUT", body: JSON.stringify(state) });
+    lastSyncedSignature = stateSignature(state);
     els.saveState.textContent = "تم الحفظ";
     toast(message);
     setTimeout(() => (els.saveState.textContent = "جاهز"), 1200);
@@ -1848,6 +1853,42 @@ function loadState() {
     return normalizeState(saved ? JSON.parse(saved) : clone(demoData));
   } catch {
     return normalizeState(clone(demoData));
+  }
+}
+
+function stateSignature(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+function startRealtimeSync() {
+  if (!USE_BACKEND) return;
+  if (syncTimer) clearInterval(syncTimer);
+  lastSyncedSignature = stateSignature(state);
+  syncTimer = setInterval(syncStateFromBackend, 3500);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") syncStateFromBackend();
+  });
+}
+
+async function syncStateFromBackend() {
+  if (!USE_BACKEND || isSyncingState || !authToken) return;
+  if (!els.modalBackdrop?.hidden) return;
+  isSyncingState = true;
+  try {
+    const remote = normalizeState(await apiFetch("/api/state"));
+    const remoteSignature = stateSignature(remote);
+    if (!remoteSignature || remoteSignature === lastSyncedSignature) return;
+    state = remote;
+    hydrateSettings();
+    render();
+    lastSyncedSignature = remoteSignature;
+  } catch {
+  } finally {
+    isSyncingState = false;
   }
 }
 
