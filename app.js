@@ -12,7 +12,7 @@ const demoData = {
     taxNumber: "VAT-123456",
     invoiceFooter: "شكرًا لتعاملكم معنا",
     currency: "₪",
-    primaryColor: "#146c5c",
+    primaryColor: "#4f46e5",
     moneyInColor: "#167947",
     moneyOutColor: "#b42318",
     mode: "light",
@@ -370,7 +370,7 @@ function hydrateSettings() {
   els.currencySymbol.value = state.settings.currency;
   els.invoiceFooter.value = state.settings.invoiceFooter || "";
   els.logoUrl.value = state.settings.logoUrl || "";
-  els.primaryColor.value = state.settings.primaryColor || "#146c5c";
+  els.primaryColor.value = state.settings.primaryColor || "#4f46e5";
   els.moneyInColor.value = state.settings.moneyInColor || "#167947";
   els.moneyOutColor.value = state.settings.moneyOutColor || "#b42318";
   els.modeSelect.value = state.settings.mode || "light";
@@ -424,12 +424,12 @@ function updateNavigationAccess() {
 
 function applyTheme() {
   const root = document.documentElement;
-  root.style.setProperty("--primary", state.settings.primaryColor || "#146c5c");
-  root.style.setProperty("--primary-dark", shadeColor(state.settings.primaryColor || "#146c5c", -22));
+  root.style.setProperty("--primary", state.settings.primaryColor || "#4f46e5");
+  root.style.setProperty("--primary-dark", shadeColor(state.settings.primaryColor || "#4f46e5", -22));
   root.style.setProperty("--money-in", state.settings.moneyInColor || "#167947");
   root.style.setProperty("--money-out", state.settings.moneyOutColor || "#b42318");
   document.body.classList.toggle("dark-mode", state.settings.mode === "dark");
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.settings.primaryColor || "#146c5c");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.settings.primaryColor || "#4f46e5");
 }
 
 function registerPwa() {
@@ -823,7 +823,7 @@ function drawChart() {
   const axisTextColor = isDark ? "#d1ddd6" : "#5d6c7d";
   const salesColor = theme.getPropertyValue("--primary").trim() || "#0d7a6b";
   const purchasesColor = theme.getPropertyValue("--accent").trim() || "#c7741e";
-  const netColor = isDark ? "#4cc9b0" : "#146c5c";
+  const netColor = isDark ? "#8b7dff" : "#4f46e5";
 
   const modeColor = chartMode === "purchases"
     ? purchasesColor
@@ -1142,7 +1142,7 @@ function invoicePrintCss(template) {
   const modern = `
     body{background:#f8faf9}
     .print-header{border-bottom:0}
-    .print-stamp{background:#146c5c;color:#fff;border-radius:10px}
+    .print-stamp{background:#4f46e5;color:#fff;border-radius:10px}
     .print-meta div,.print-totals div{padding:12px;border-radius:10px;background:#eef4f0;border:0}
     .print-meta span,.print-totals span{display:block;color:#5b6a62;font-size:12px}
     .print-table{overflow:hidden;border-radius:10px}
@@ -1705,7 +1705,7 @@ function saveSettings() {
   state.settings.currency = els.currencySymbol.value.trim() || "₪";
   state.settings.invoiceFooter = els.invoiceFooter.value.trim();
   state.settings.logoUrl = els.logoUrl.value.trim();
-  state.settings.primaryColor = els.primaryColor.value || "#146c5c";
+  state.settings.primaryColor = els.primaryColor.value || "#4f46e5";
   state.settings.moneyInColor = els.moneyInColor.value || "#167947";
   state.settings.moneyOutColor = els.moneyOutColor.value || "#b42318";
   state.settings.mode = els.modeSelect.value || "light";
@@ -1808,6 +1808,7 @@ function loadState() {
 
 function normalizeState(data) {
   data.settings = { ...clone(demoData.settings), ...(data.settings || {}) };
+  if (data.settings.primaryColor === "#146c5c") data.settings.primaryColor = "#4f46e5";
   if (!["official", "modern", "minimal"].includes(data.settings.invoiceTemplate)) data.settings.invoiceTemplate = "official";
   data.users = data.users?.length ? data.users : clone(demoData.users);
   data.currentUserId = data.currentUserId || data.users[0]?.id || "u-admin";
@@ -2367,7 +2368,7 @@ function rememberCategory(group, category) {
 }
 
 function shadeColor(color, percent) {
-  const value = String(color || "#146c5c").replace("#", "");
+  const value = String(color || "#4f46e5").replace("#", "");
   const num = parseInt(value.length === 3 ? value.split("").map((c) => c + c).join("") : value, 16);
   const amount = Math.round(2.55 * percent);
   const r = Math.max(0, Math.min(255, (num >> 16) + amount));
