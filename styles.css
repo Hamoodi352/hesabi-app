@@ -993,38 +993,41 @@ td.actions {
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    top: auto;
     z-index: 12;
     height: auto;
     padding: 10px;
     flex-direction: row;
     align-items: center;
-    overflow-x: auto;
+    overflow-x: hidden;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .brand {
-    padding: 0;
-    border: 0;
+    display: none;
   }
 
   .nav-list {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
     margin: 0;
-    width: max-content;
+    width: 100%;
   }
 
   .nav-item {
-    width: 52px;
-    min-width: 52px;
-    min-height: 52px;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
     padding: 0;
     justify-content: center;
   }
 
   .workspace {
-    padding: 14px;
+    padding: 14px 14px 88px;
   }
 
   .view {
@@ -1115,12 +1118,72 @@ td.actions {
     min-height: 44px;
   }
 
-  table {
-    min-width: 680px;
+  .table-wrap {
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    backdrop-filter: none;
+    border-radius: 10px;
   }
 
-  .table-wrap {
+  table.responsive-table {
+    min-width: 0;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  table.responsive-table thead {
+    display: none;
+  }
+
+  table.responsive-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  table.responsive-table tbody tr {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
     border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  table.responsive-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    white-space: normal;
+    border-bottom: 1px dashed var(--line);
+    padding: 8px 0;
+  }
+
+  table.responsive-table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  table.responsive-table tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  table.responsive-table tbody td.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    border-bottom: 0;
+    padding-top: 2px;
+  }
+
+  table.responsive-table tbody td.actions::before {
+    content: "";
+    display: none;
   }
 
   .metric-card strong {
@@ -1194,6 +1257,10 @@ td.actions {
 
   .top-actions {
     grid-template-columns: 1fr;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   #exportBtn,

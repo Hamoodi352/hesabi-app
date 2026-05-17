@@ -414,6 +414,23 @@ function render() {
   renderActivity();
   renderUsers();
   drawChart();
+  applyResponsiveTableLabels();
+}
+
+function applyResponsiveTableLabels() {
+  document.querySelectorAll(".table-wrap table").forEach((table) => {
+    table.classList.add("responsive-table");
+    const headers = Array.from(table.querySelectorAll("thead th")).map((th) => (th.textContent || "").trim());
+    if (!headers.length) return;
+    table.querySelectorAll("tbody tr").forEach((row) => {
+      const cells = Array.from(row.children).filter((cell) => cell.tagName === "TD");
+      if (cells.length <= 1) return;
+      cells.forEach((cell, index) => {
+        if (cell.hasAttribute("colspan")) return;
+        cell.setAttribute("data-label", headers[index] || "");
+      });
+    });
+  });
 }
 
 function updateNavigationAccess() {
