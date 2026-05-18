@@ -263,6 +263,11 @@ function bindEvents() {
     reportRange.to = els.reportTo.value || today;
     renderReports();
   });
+  on(els.modeSelect, "change", () => {
+    state.settings.mode = els.modeSelect.value || "light";
+    applyTheme();
+    drawChart();
+  });
   on(els.saveSettings, "click", saveSettings);
   on(els.resetDemo, "click", resetDemoData);
   on(els.clearActivityBtn, "click", clearActivityLog);
