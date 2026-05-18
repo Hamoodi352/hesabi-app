@@ -1,4 +1,4 @@
-const http = require("http");
+﻿const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -32,8 +32,11 @@ bootstrap()
         if (url.pathname === "/api/login" && req.method === "POST") return login(req, res);
         if (url.pathname === "/api/signup" && req.method === "POST") return signup(req, res);
         if (url.pathname === "/api/verify-email" && req.method === "POST") return verifyEmail(req, res);
+        if (url.pathname === "/api/password/request-reset" && req.method === "POST") return requestPasswordReset(req, res);
+        if (url.pathname === "/api/password/confirm-reset" && req.method === "POST") return confirmPasswordReset(req, res);
         if (url.pathname === "/api/session" && req.method === "GET") return session(req, res);
         if (url.pathname === "/api/team/users" && req.method === "POST") return createTeamUser(req, res);
+        if (url.pathname.startsWith("/api/team/users/") && req.method === "PUT") return updateTeamUser(req, res, url);
         if (url.pathname === "/api/state" && req.method === "GET") return getState(req, res);
         if (url.pathname === "/api/state" && req.method === "PUT") return putState(req, res);
         if (url.pathname === "/api/stream" && req.method === "GET") return streamState(req, res, url);
@@ -63,7 +66,7 @@ async function login(req, res) {
   const db = await readDb();
   const { email, password } = JSON.parse(body || "{}");
   const user = db.users.find((item) => item.email === email);
-  if (!user || user.active === false || user.emailVerified === false || !verifyPassword(password || "", user)) return json(res, 401, { error: "بيانات الدخول غير صحيحة أو الحساب غير فعال/غير مؤكد" });
+  if (!user || user.active === false || user.emailVerified === false || !verifyPassword(password || "", user)) return json(res, 401, { error: "Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø®ÙˆÙ„ ØºÙŠØ± ØµØ­ÙŠØ­Ø© Ø£Ùˆ Ø§Ù„Ø­Ø³Ø§Ø¨ ØºÙŠØ± ÙØ¹Ø§Ù„/ØºÙŠØ± Ù…Ø¤ÙƒØ¯" });
   const token = crypto.randomBytes(32).toString("hex");
   sessions.set(token, { userId: user.id, createdAt: Date.now() });
   json(res, 200, { token, user: publicUser(user) });
@@ -75,10 +78,10 @@ async function signup(req, res) {
   const cleanName = String(name || "").trim();
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
-  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "الاسم والبريد مطلوبان وكلمة المرور 6 أحرف على الأقل" });
+  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "Ø§Ù„Ø§Ø³Ù… ÙˆØ§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø·Ù„ÙˆØ¨Ø§Ù† ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„" });
 
   const db = await readDb();
-  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "البريد مستخدم مسبقًا" });
+  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¨Ù‚Ù‹Ø§" });
   db.pendingUsers ||= [];
   db.emailVerifications ||= [];
   db.pendingUsers = db.pendingUsers.filter((u) => String(u.email || "").toLowerCase() !== cleanEmail);
@@ -104,11 +107,11 @@ async function signup(req, res) {
     codeSalt,
     expiresAt: Date.now() + 15 * 60 * 1000,
   });
-  await writeDb(db);
+  await writeDb(bumpRevision(db));
 
   const delivered = await sendVerificationCode(cleanEmail, code);
-  if (!delivered) return json(res, 200, { ok: true, delivery: "code", debugCode: code, message: "أدخل كود التحقق لإكمال التسجيل." });
-  return json(res, 200, { ok: true, delivery: "email", message: "تم إرسال كود التحقق إلى بريدك الإلكتروني." });
+  if (!delivered) return json(res, 200, { ok: true, delivery: "code", debugCode: code, message: "Ø£Ø¯Ø®Ù„ ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ù„Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„ØªØ³Ø¬ÙŠÙ„." });
+  return json(res, 200, { ok: true, delivery: "email", message: "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø¥Ù„Ù‰ Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ." });
 }
 
 async function verifyEmail(req, res) {
@@ -121,16 +124,63 @@ async function verifyEmail(req, res) {
   db.emailVerifications ||= [];
   const pending = db.pendingUsers.find((u) => String(u.email || "").toLowerCase() === cleanEmail);
   const verification = db.emailVerifications.find((v) => String(v.email || "").toLowerCase() === cleanEmail);
-  if (!pending || !verification) return json(res, 400, { error: "طلب التحقق غير موجود" });
-  if (Date.now() > Number(verification.expiresAt || 0)) return json(res, 400, { error: "انتهت صلاحية كود التحقق" });
-  if (!timingSafeEquals(hashPassword(cleanCode, verification.codeSalt), verification.codeHash)) return json(res, 400, { error: "كود التحقق غير صحيح" });
+  if (!pending || !verification) return json(res, 400, { error: "Ø·Ù„Ø¨ Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" });
+  if (Date.now() > Number(verification.expiresAt || 0)) return json(res, 400, { error: "Ø§Ù†ØªÙ‡Øª ØµÙ„Ø§Ø­ÙŠØ© ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚" });
+  if (!timingSafeEquals(hashPassword(cleanCode, verification.codeSalt), verification.codeHash)) return json(res, 400, { error: "ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± ØµØ­ÙŠØ­" });
   if (!db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) db.users.push(pending);
   db.pendingUsers = db.pendingUsers.filter((u) => String(u.email || "").toLowerCase() !== cleanEmail);
   db.emailVerifications = db.emailVerifications.filter((v) => String(v.email || "").toLowerCase() !== cleanEmail);
-  await writeDb(db);
-  return json(res, 200, { ok: true, message: "تم تفعيل الحساب بنجاح" });
+  await writeDb(bumpRevision(db));
+  broadcastStateChange();
+  return json(res, 200, { ok: true, message: "Account verified successfully" });
 }
 
+
+async function requestPasswordReset(req, res) {
+  const body = await readBody(req);
+  const { email } = JSON.parse(body || "{}");
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) return json(res, 400, { error: "Email is required" });
+  const db = await readDb();
+  const user = db.users.find((u) => String(u.email || "").toLowerCase() === cleanEmail && u.active !== false);
+  if (!user) return json(res, 404, { error: "Account not found" });
+  db.passwordResets ||= [];
+  db.passwordResets = db.passwordResets.filter((item) => String(item.email || "").toLowerCase() !== cleanEmail);
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeSalt = crypto.randomBytes(12).toString("hex");
+  db.passwordResets.push({
+    email: cleanEmail,
+    codeHash: hashPassword(code, codeSalt),
+    codeSalt,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+  });
+  await writeDb(bumpRevision(db));
+  const delivered = await sendEmailCode(cleanEmail, code, "Password reset code", "Reset code");
+  if (!delivered) return json(res, 200, { ok: true, delivery: "code", debugCode: code, message: "Use this code to reset your password." });
+  return json(res, 200, { ok: true, delivery: "email", message: "Reset code sent to your email." });
+}
+
+async function confirmPasswordReset(req, res) {
+  const body = await readBody(req);
+  const { email, code, newPassword } = JSON.parse(body || "{}");
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanCode = String(code || "").trim();
+  const password = String(newPassword || "");
+  if (password.length < 6) return json(res, 400, { error: "Password must be at least 6 chars" });
+  const db = await readDb();
+  db.passwordResets ||= [];
+  const reset = db.passwordResets.find((item) => String(item.email || "").toLowerCase() === cleanEmail);
+  const user = db.users.find((u) => String(u.email || "").toLowerCase() === cleanEmail);
+  if (!reset || !user) return json(res, 400, { error: "Reset request not found" });
+  if (Date.now() > Number(reset.expiresAt || 0)) return json(res, 400, { error: "Reset code expired" });
+  if (!timingSafeEquals(hashPassword(cleanCode, reset.codeSalt), reset.codeHash)) return json(res, 400, { error: "Invalid reset code" });
+  const salt = crypto.randomBytes(16).toString("hex");
+  user.salt = salt;
+  user.passwordHash = hashPassword(password, salt);
+  db.passwordResets = db.passwordResets.filter((item) => String(item.email || "").toLowerCase() !== cleanEmail);
+  await writeDb(bumpRevision(db));
+  return json(res, 200, { ok: true, message: "Password changed successfully" });
+}
 async function session(req, res) {
   const auth = await requireAuth(req, res);
   if (!auth) return;
@@ -140,16 +190,16 @@ async function session(req, res) {
 async function createTeamUser(req, res) {
   const auth = await requireAuth(req, res);
   if (!auth) return;
-  if (auth.user.role !== "admin") return json(res, 403, { error: "فقط المدير يمكنه إضافة مستخدمين" });
+  if (auth.user.role !== "admin") return json(res, 403, { error: "ÙÙ‚Ø· Ø§Ù„Ù…Ø¯ÙŠØ± ÙŠÙ…ÙƒÙ†Ù‡ Ø¥Ø¶Ø§ÙØ© Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†" });
   const body = await readBody(req);
   const { name, email, password, role } = JSON.parse(body || "{}");
   const cleanName = String(name || "").trim();
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
   const cleanRole = ["accountant", "cashier", "employee", "viewer"].includes(role) ? role : "employee";
-  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "الاسم والبريد مطلوبان وكلمة المرور 6 أحرف على الأقل" });
+  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "Ø§Ù„Ø§Ø³Ù… ÙˆØ§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø·Ù„ÙˆØ¨Ø§Ù† ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„" });
   const db = await readDb();
-  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "البريد مستخدم مسبقًا" });
+  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¨Ù‚Ù‹Ø§" });
   const salt = crypto.randomBytes(16).toString("hex");
   const newUser = {
     id: `u-${Date.now().toString(36)}`,
@@ -162,8 +212,32 @@ async function createTeamUser(req, res) {
     passwordHash: hashPassword(cleanPassword, salt),
   };
   db.users.push(newUser);
-  await writeDb(db);
+  await writeDb(bumpRevision(db));
+  broadcastStateChange();
   return json(res, 200, { ok: true, user: publicUser(newUser) });
+}
+
+async function updateTeamUser(req, res, url) {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+  if (auth.user.role !== "admin") return json(res, 403, { error: "Only admin can edit users" });
+  const userId = decodeURIComponent(url.pathname.split("/").pop() || "");
+  if (!userId) return json(res, 400, { error: "User id is required" });
+  const body = await readBody(req);
+  const payload = JSON.parse(body || "{}");
+  const db = await readDb();
+  const target = db.users.find((item) => item.id === userId);
+  if (!target) return json(res, 404, { error: "User not found" });
+  if (target.id === auth.user.id && payload.active === false) return json(res, 400, { error: "Cannot deactivate current login user" });
+  if (payload.role && ["admin", "accountant", "cashier", "employee", "viewer"].includes(payload.role)) target.role = payload.role;
+  if (payload.active !== undefined) target.active = Boolean(payload.active);
+  if (payload.name !== undefined) {
+    const clean = String(payload.name || "").trim();
+    if (clean) target.name = clean;
+  }
+  await writeDb(bumpRevision(db));
+  broadcastStateChange();
+  return json(res, 200, { ok: true, user: publicUser(target) });
 }
 
 async function getState(req, res) {
@@ -177,13 +251,19 @@ async function putState(req, res) {
   if (!auth) return;
   const body = await readBody(req);
   const next = JSON.parse(body || "{}");
+  const baseRevision = Number(next._baseRevision || 0);
+  const currentRevision = Number(auth.db._meta?.revision || 1);
+  if (baseRevision && baseRevision !== currentRevision) return json(res, 409, { error: "State changed on another device", code: "REVISION_CONFLICT", latestRevision: currentRevision });
   const role = auth.user.role;
   const guarded = roleGuard(role, auth.db, next);
   if (!guarded.ok) return json(res, 403, { error: guarded.error });
   const merged = { ...next, users: mergeUsers(auth.db.users, next.users || []) };
-  await writeDb(merged);
+  delete merged._baseRevision;
+  delete merged._revision;
+  const withRevision = bumpRevision(merged, currentRevision);
+  await writeDb(withRevision);
   broadcastStateChange();
-  json(res, 200, { ok: true });
+  json(res, 200, { ok: true, revision: withRevision._meta.revision });
 }
 
 async function streamState(req, res, url) {
@@ -191,7 +271,7 @@ async function streamState(req, res, url) {
   const sessionObj = sessions.get(token);
   const db = await readDb();
   const user = sessionObj ? db.users.find((item) => item.id === sessionObj.userId) : null;
-  if (!user || user.active === false) return json(res, 401, { error: "يرجى تسجيل الدخول" });
+  if (!user || user.active === false) return json(res, 401, { error: "ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„" });
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
@@ -230,27 +310,27 @@ function broadcastStateChange() {
 
 function roleGuard(role, current, next) {
   if (role === "admin") return { ok: true };
-  if (role === "viewer") return { ok: false, error: "المستخدم للعرض فقط" };
+  if (role === "viewer") return { ok: false, error: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ù„Ù„Ø¹Ø±Ø¶ ÙÙ‚Ø·" };
 
   const changed = (key) => JSON.stringify(current[key] || null) !== JSON.stringify(next[key] || null);
   const blockedForAccountant = ["settings", "users", "accounts", "products"];
   const blockedForCashier = ["settings", "users", "accounts", "products", "contacts", "expenses", "categories"];
   const blocked = role === "accountant" ? blockedForAccountant : blockedForCashier;
   const badKey = blocked.find(changed);
-  if (badKey) return { ok: false, error: "الصلاحية لا تسمح بتعديل هذا القسم" };
+  if (badKey) return { ok: false, error: "Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§ ØªØ³Ù…Ø­ Ø¨ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ù‚Ø³Ù…" };
 
   const protectedCollections = ["invoices", "payments", "expenses", "credits"];
   for (const key of protectedCollections) {
     const before = Array.isArray(current[key]) ? current[key] : [];
     const after = Array.isArray(next[key]) ? next[key] : [];
-    if (after.length < before.length) return { ok: false, error: "لا يمكن حذف سجلات مالية مباشرة بهذا الدور" };
+    if (after.length < before.length) return { ok: false, error: "Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø°Ù Ø³Ø¬Ù„Ø§Øª Ù…Ø§Ù„ÙŠØ© Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ±" };
   }
 
   if (role === "cashier" || role === "employee") {
     const allowedKeys = new Set(["currentUserId", "invoices", "payments", "activityLog"]);
     const modifiedKeys = Object.keys(next).filter((key) => JSON.stringify(current[key] ?? null) !== JSON.stringify(next[key] ?? null));
     const illegalKey = modifiedKeys.find((key) => !allowedKeys.has(key));
-    if (illegalKey) return { ok: false, error: "هذا الدور لا يملك تعديل هذا القسم" };
+    if (illegalKey) return { ok: false, error: "Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ù„Ø§ ÙŠÙ…Ù„Ùƒ ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ù‚Ø³Ù…" };
   }
 
   return { ok: true };
@@ -273,7 +353,7 @@ async function requireAuth(req, res) {
   const db = await readDb();
   const user = sessionObj ? db.users.find((item) => item.id === sessionObj.userId) : null;
   if (!user || user.active === false) {
-    json(res, 401, { error: "يرجى تسجيل الدخول" });
+    json(res, 401, { error: "ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„" });
     return null;
   }
   return { user, db };
@@ -283,6 +363,8 @@ function sanitizeState(db) {
   const sanitized = { ...db, users: db.users.map(publicUser) };
   delete sanitized.pendingUsers;
   delete sanitized.emailVerifications;
+  delete sanitized.passwordResets;
+  sanitized._revision = Number(db._meta?.revision || 1);
   return sanitized;
 }
 
@@ -330,14 +412,25 @@ function ensureFileState() {
 function loadSeed() {
   const seed = JSON.parse(fs.readFileSync(path.join(root, "seed.json"), "utf8"));
   seed.users = [
-    user("u-admin", "المدير", "admin@example.com", "admin123", "admin"),
-    user("u-accountant", "المحاسب", "accountant@example.com", "accountant123", "accountant"),
-    user("u-cashier", "الكاشير", "cashier@example.com", "cashier123", "cashier"),
-    user("u-employee", "موظف", "employee@example.com", "employee123", "employee"),
+    user("u-admin", "Ø§Ù„Ù…Ø¯ÙŠØ±", "admin@example.com", "admin123", "admin"),
+    user("u-accountant", "Ø§Ù„Ù…Ø­Ø§Ø³Ø¨", "accountant@example.com", "accountant123", "accountant"),
+    user("u-cashier", "Ø§Ù„ÙƒØ§Ø´ÙŠØ±", "cashier@example.com", "cashier123", "cashier"),
+    user("u-employee", "Ù…ÙˆØ¸Ù", "employee@example.com", "employee123", "employee"),
   ];
   seed.pendingUsers = [];
   seed.emailVerifications = [];
+  seed.passwordResets = [];
+  seed._meta = { revision: 1, updatedAt: Date.now() };
   return seed;
+}
+
+function bumpRevision(data, currentRevision = null) {
+  const current = currentRevision || Number(data?._meta?.revision || 1);
+  data._meta = {
+    revision: current + 1,
+    updatedAt: Date.now(),
+  };
+  return data;
 }
 
 function user(id, name, email, password, role) {
@@ -362,6 +455,10 @@ function timingSafeEquals(a, b) {
 }
 
 async function sendVerificationCode(email, code) {
+  return sendEmailCode(email, code, "Verify your account", "Verification code");
+}
+
+async function sendEmailCode(email, code, subject, textPrefix) {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
@@ -381,8 +478,8 @@ async function sendVerificationCode(email, code) {
     await transport.sendMail({
       from,
       to: email,
-      subject: "تأكيد حسابك في نظام حسابي",
-      text: `كود التحقق الخاص بك هو: ${code}\nينتهي خلال 15 دقيقة.`,
+      subject,
+      text: `${textPrefix}: ${code}\nExpires in 15 minutes.`,
     });
     return true;
   } catch (error) {
@@ -432,3 +529,4 @@ function contentType(file) {
   if (file.endsWith(".jpg") || file.endsWith(".jpeg")) return "image/jpeg";
   return "application/octet-stream";
 }
+

@@ -604,6 +604,17 @@ td.actions {
   align-items: center;
 }
 
+.mini-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mini-actions select {
+  min-width: 130px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
