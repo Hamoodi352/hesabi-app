@@ -66,7 +66,7 @@ async function login(req, res) {
   const db = await readDb();
   const { email, password } = JSON.parse(body || "{}");
   const user = db.users.find((item) => item.email === email);
-  if (!user || user.active === false || user.emailVerified === false || !verifyPassword(password || "", user)) return json(res, 401, { error: "Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø®ÙˆÙ„ ØºÙŠØ± ØµØ­ÙŠØ­Ø© Ø£Ùˆ Ø§Ù„Ø­Ø³Ø§Ø¨ ØºÙŠØ± ÙØ¹Ø§Ù„/ØºÙŠØ± Ù…Ø¤ÙƒØ¯" });
+  if (!user || user.active === false || user.emailVerified === false || !verifyPassword(password || "", user)) return json(res, 401, { error: "بيانات الدخول غير صحيحة أو الحساب غير فعال/غير مؤكد" });
   const token = crypto.randomBytes(32).toString("hex");
   sessions.set(token, { userId: user.id, createdAt: Date.now() });
   json(res, 200, { token, user: publicUser(user) });
@@ -78,10 +78,10 @@ async function signup(req, res) {
   const cleanName = String(name || "").trim();
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
-  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "Ø§Ù„Ø§Ø³Ù… ÙˆØ§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø·Ù„ÙˆØ¨Ø§Ù† ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„" });
+  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "الاسم والبريد مطلوبان وكلمة المرور 6 أحرف على الأقل" });
 
   const db = await readDb();
-  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¨Ù‚Ù‹Ø§" });
+  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "البريد مستخدم مسبقًا" });
   db.pendingUsers ||= [];
   db.emailVerifications ||= [];
   db.pendingUsers = db.pendingUsers.filter((u) => String(u.email || "").toLowerCase() !== cleanEmail);
@@ -200,16 +200,16 @@ async function session(req, res) {
 async function createTeamUser(req, res) {
   const auth = await requireAuth(req, res);
   if (!auth) return;
-  if (auth.user.role !== "admin") return json(res, 403, { error: "ÙÙ‚Ø· Ø§Ù„Ù…Ø¯ÙŠØ± ÙŠÙ…ÙƒÙ†Ù‡ Ø¥Ø¶Ø§ÙØ© Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†" });
+  if (auth.user.role !== "admin") return json(res, 403, { error: "فقط المدير يمكنه إضافة مستخدمين" });
   const body = await readBody(req);
   const { name, email, password, role } = JSON.parse(body || "{}");
   const cleanName = String(name || "").trim();
   const cleanEmail = String(email || "").trim().toLowerCase();
   const cleanPassword = String(password || "");
   const cleanRole = ["accountant", "cashier", "employee", "viewer"].includes(role) ? role : "employee";
-  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "Ø§Ù„Ø§Ø³Ù… ÙˆØ§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø·Ù„ÙˆØ¨Ø§Ù† ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„" });
+  if (!cleanName || !cleanEmail || cleanPassword.length < 6) return json(res, 400, { error: "الاسم والبريد مطلوبان وكلمة المرور 6 أحرف على الأقل" });
   const db = await readDb();
-  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¨Ù‚Ù‹Ø§" });
+  if (db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) return json(res, 409, { error: "البريد مستخدم مسبقًا" });
   const salt = crypto.randomBytes(16).toString("hex");
   const newUser = {
     id: `u-${Date.now().toString(36)}`,
@@ -281,7 +281,7 @@ async function streamState(req, res, url) {
   const sessionObj = sessions.get(token);
   const db = await readDb();
   const user = sessionObj ? db.users.find((item) => item.id === sessionObj.userId) : null;
-  if (!user || user.active === false) return json(res, 401, { error: "ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„" });
+  if (!user || user.active === false) return json(res, 401, { error: "يرجى تسجيل الدخول" });
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
@@ -320,27 +320,27 @@ function broadcastStateChange() {
 
 function roleGuard(role, current, next) {
   if (role === "admin") return { ok: true };
-  if (role === "viewer") return { ok: false, error: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ù„Ù„Ø¹Ø±Ø¶ ÙÙ‚Ø·" };
+  if (role === "viewer") return { ok: false, error: "المستخدم للعرض فقط" };
 
   const changed = (key) => JSON.stringify(current[key] || null) !== JSON.stringify(next[key] || null);
   const blockedForAccountant = ["settings", "users", "accounts", "products"];
   const blockedForCashier = ["settings", "users", "accounts", "products", "contacts", "expenses", "categories"];
   const blocked = role === "accountant" ? blockedForAccountant : blockedForCashier;
   const badKey = blocked.find(changed);
-  if (badKey) return { ok: false, error: "Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§ ØªØ³Ù…Ø­ Ø¨ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ù‚Ø³Ù…" };
+  if (badKey) return { ok: false, error: "الصلاحية لا تسمح بتعديل هذا القسم" };
 
   const protectedCollections = ["invoices", "payments", "expenses", "credits"];
   for (const key of protectedCollections) {
     const before = Array.isArray(current[key]) ? current[key] : [];
     const after = Array.isArray(next[key]) ? next[key] : [];
-    if (after.length < before.length) return { ok: false, error: "Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø°Ù Ø³Ø¬Ù„Ø§Øª Ù…Ø§Ù„ÙŠØ© Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ±" };
+    if (after.length < before.length) return { ok: false, error: "لا يمكن حذف سجلات مالية مباشرة بهذا الدور" };
   }
 
   if (role === "cashier" || role === "employee") {
     const allowedKeys = new Set(["currentUserId", "invoices", "payments", "activityLog"]);
     const modifiedKeys = Object.keys(next).filter((key) => JSON.stringify(current[key] ?? null) !== JSON.stringify(next[key] ?? null));
     const illegalKey = modifiedKeys.find((key) => !allowedKeys.has(key));
-    if (illegalKey) return { ok: false, error: "Ù‡Ø°Ø§ Ø§Ù„Ø¯ÙˆØ± Ù„Ø§ ÙŠÙ…Ù„Ùƒ ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ù‚Ø³Ù…" };
+    if (illegalKey) return { ok: false, error: "هذا الدور لا يملك تعديل هذا القسم" };
   }
 
   return { ok: true };
@@ -363,7 +363,7 @@ async function requireAuth(req, res) {
   const db = await readDb();
   const user = sessionObj ? db.users.find((item) => item.id === sessionObj.userId) : null;
   if (!user || user.active === false) {
-    json(res, 401, { error: "ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„" });
+    json(res, 401, { error: "يرجى تسجيل الدخول" });
     return null;
   }
   return { user, db };
@@ -422,10 +422,10 @@ function ensureFileState() {
 function loadSeed() {
   const seed = JSON.parse(fs.readFileSync(path.join(root, "seed.json"), "utf8"));
   seed.users = [
-    user("u-admin", "Ø§Ù„Ù…Ø¯ÙŠØ±", "admin@example.com", "admin123", "admin"),
-    user("u-accountant", "Ø§Ù„Ù…Ø­Ø§Ø³Ø¨", "accountant@example.com", "accountant123", "accountant"),
-    user("u-cashier", "Ø§Ù„ÙƒØ§Ø´ÙŠØ±", "cashier@example.com", "cashier123", "cashier"),
-    user("u-employee", "Ù…ÙˆØ¸Ù", "employee@example.com", "employee123", "employee"),
+    user("u-admin", "المدير", "admin@example.com", "admin123", "admin"),
+    user("u-accountant", "المحاسب", "accountant@example.com", "accountant123", "accountant"),
+    user("u-cashier", "الكاشير", "cashier@example.com", "cashier123", "cashier"),
+    user("u-employee", "موظف", "employee@example.com", "employee123", "employee"),
   ];
   seed.pendingUsers = [];
   seed.emailVerifications = [];
