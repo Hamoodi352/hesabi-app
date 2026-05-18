@@ -312,55 +312,55 @@ function showLoginScreen() {
     <main class="login-screen" dir="rtl">
       <form class="login-card" id="loginForm">
         <div class="brand login-brand">
-          <div class="brand-mark">Ø­</div>
+          <div class="brand-mark">ح</div>
           <div>
-            <strong>Ø­Ø³Ø§Ø¨ÙŠ</strong>
-            <span>ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„</span>
+            <strong>حسابي</strong>
+            <span>تسجيل الدخول</span>
           </div>
         </div>
         <label>
-          Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ
+          البريد الإلكتروني
           <input name="email" type="email" value="admin@example.com" required />
         </label>
         <label>
-          ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±
+          كلمة المرور
           <input name="password" type="password" value="admin123" required />
         </label>
-        <button class="primary-btn" type="submit">Ø¯Ø®ÙˆÙ„</button>
-        <button class="ghost-btn" type="button" id="openSignupBtn">Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯</button>
-        <button class="ghost-btn" type="button" id="openVerifyBtn">ØªÙØ¹ÙŠÙ„ Ø­Ø³Ø§Ø¨</button>
+        <button class="primary-btn" type="submit">دخول</button>
+        <button class="ghost-btn" type="button" id="openSignupBtn">إنشاء حساب جديد</button>
+        <button class="ghost-btn" type="button" id="openVerifyBtn">تفعيل حساب</button>
         <p id="loginError"></p>
       </form>
       <form class="login-card" id="signupForm" hidden>
-        <h3>Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯</h3>
+        <h3>إنشاء حساب جديد</h3>
         <label>
-          Ø§Ù„Ø§Ø³Ù…
+          الاسم
           <input name="name" type="text" required />
         </label>
         <label>
-          Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ
+          البريد الإلكتروني
           <input name="email" type="email" required />
         </label>
         <label>
-          ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±
+          كلمة المرور
           <input name="password" type="password" minlength="6" required />
         </label>
-        <button class="primary-btn" type="submit">Ø¥Ø±Ø³Ø§Ù„ ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚</button>
-        <button class="ghost-btn" type="button" id="backToLoginFromSignup">Ø±Ø¬ÙˆØ¹ Ù„Ù„Ø¯Ø®ÙˆÙ„</button>
+        <button class="primary-btn" type="submit">إرسال كود التحقق</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromSignup">رجوع للدخول</button>
         <p id="signupMsg"></p>
       </form>
       <form class="login-card" id="verifyForm" hidden>
-        <h3>ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨</h3>
+        <h3>تفعيل الحساب</h3>
         <label>
-          Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ
+          البريد الإلكتروني
           <input name="email" type="email" required />
         </label>
         <label>
-          ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚
+          كود التحقق
           <input name="code" type="text" inputmode="numeric" required />
         </label>
-        <button class="primary-btn" type="submit">ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨</button>
-        <button class="ghost-btn" type="button" id="backToLoginFromVerify">Ø±Ø¬ÙˆØ¹ Ù„Ù„Ø¯Ø®ÙˆÙ„</button>
+        <button class="primary-btn" type="submit">تفعيل الحساب</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromVerify">رجوع للدخول</button>
         <p id="verifyMsg"></p>
       </form>
     </main>
@@ -421,7 +421,7 @@ function showLoginScreen() {
       localStorage.setItem("invoice_auth_token", authToken);
       location.reload();
     } catch (error) {
-      document.getElementById("loginError").textContent = error.message || "ÙØ´Ù„ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„";
+      document.getElementById("loginError").textContent = error.message || "فشل تسجيل الدخول";
     }
   });
   document.getElementById("signupForm").addEventListener("submit", async (event) => {
@@ -438,7 +438,7 @@ function showLoginScreen() {
       verifyForm.email.value = form.email.value;
       showForm("verify");
     } catch (error) {
-      msg.textContent = error.message || "ØªØ¹Ø°Ø± Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨";
+      msg.textContent = error.message || "تعذر إنشاء الحساب";
     }
   });
   document.getElementById("verifyForm").addEventListener("submit", async (event) => {
@@ -456,7 +456,7 @@ function showLoginScreen() {
       loginForm.email.value = form.email.value;
       loginForm.password.focus();
     } catch (error) {
-      msg.textContent = error.message || "ÙØ´Ù„ Ø§Ù„ØªÙØ¹ÙŠÙ„";
+      msg.textContent = error.message || "فشل التفعيل";
     }
   });
 }
