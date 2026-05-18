@@ -110,8 +110,18 @@ async function signup(req, res) {
   await writeDb(bumpRevision(db));
 
   const delivered = await sendVerificationCode(cleanEmail, code);
-  if (!delivered) return json(res, 200, { ok: true, delivery: "code", debugCode: code, message: "Ø£Ø¯Ø®Ù„ ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ù„Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„ØªØ³Ø¬ÙŠÙ„." });
-  return json(res, 200, { ok: true, delivery: "email", message: "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø¥Ù„Ù‰ Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ." });
+  if (!delivered) {
+    return json(res, 200, {
+      ok: true,
+      delivery: "code",
+      debugCode: code,
+      smtpConfigured: isSmtpConfigured(),
+      message: isSmtpConfigured()
+        ? "Email send failed. Use the fallback code."
+        : "SMTP is not configured on the server. Use the fallback code.",
+    });
+  }
+  return json(res, 200, { ok: true, delivery: "email", smtpConfigured: true, message: "Verification code sent to your email." });
 }
 
 async function verifyEmail(req, res) {
@@ -124,9 +134,9 @@ async function verifyEmail(req, res) {
   db.emailVerifications ||= [];
   const pending = db.pendingUsers.find((u) => String(u.email || "").toLowerCase() === cleanEmail);
   const verification = db.emailVerifications.find((v) => String(v.email || "").toLowerCase() === cleanEmail);
-  if (!pending || !verification) return json(res, 400, { error: "Ø·Ù„Ø¨ Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯" });
-  if (Date.now() > Number(verification.expiresAt || 0)) return json(res, 400, { error: "Ø§Ù†ØªÙ‡Øª ØµÙ„Ø§Ø­ÙŠØ© ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚" });
-  if (!timingSafeEquals(hashPassword(cleanCode, verification.codeSalt), verification.codeHash)) return json(res, 400, { error: "ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ ØºÙŠØ± ØµØ­ÙŠØ­" });
+  if (!pending || !verification) return json(res, 400, { error: "Verification request not found" });
+  if (Date.now() > Number(verification.expiresAt || 0)) return json(res, 400, { error: "Verification code expired" });
+  if (!timingSafeEquals(hashPassword(cleanCode, verification.codeSalt), verification.codeHash)) return json(res, 400, { error: "Invalid verification code" });
   if (!db.users.some((u) => String(u.email || "").toLowerCase() === cleanEmail)) db.users.push(pending);
   db.pendingUsers = db.pendingUsers.filter((u) => String(u.email || "").toLowerCase() !== cleanEmail);
   db.emailVerifications = db.emailVerifications.filter((v) => String(v.email || "").toLowerCase() !== cleanEmail);
@@ -487,6 +497,10 @@ async function sendEmailCode(email, code, subject, textPrefix) {
     console.log(`Verification code for ${email}: ${code}`);
     return false;
   }
+}
+
+function isSmtpConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && (process.env.SMTP_FROM || process.env.SMTP_USER));
 }
 
 async function readDb() {
