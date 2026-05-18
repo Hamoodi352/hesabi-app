@@ -294,7 +294,7 @@ function logoutUser() {
 
 async function bootstrapBackendSession() {
   if (!authToken) {
-    showLoginScreen();
+    showLoginScreenV2();
     return false;
   }
   try {
@@ -305,7 +305,7 @@ async function bootstrapBackendSession() {
   } catch {
     localStorage.removeItem("invoice_auth_token");
     authToken = "";
-    showLoginScreen();
+    showLoginScreenV2();
     return false;
   }
 }
@@ -432,6 +432,215 @@ function showLoginScreen() {
       msg.textContent = error.message || "فشل التفعيل";
     }
   });
+}
+
+function showLoginScreenV2() {
+  document.body.innerHTML = `
+    <main class="login-screen" dir="rtl">
+      <form class="login-card" id="loginForm">
+        <div class="brand login-brand">
+          <div class="brand-mark">ح</div>
+          <div>
+            <strong>حسابي</strong>
+            <span>تسجيل الدخول</span>
+          </div>
+        </div>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" value="admin@example.com" required />
+        </label>
+        <label>
+          كلمة المرور
+          <input name="password" type="password" value="admin123" required />
+        </label>
+        <button class="primary-btn" type="submit">دخول</button>
+        <button class="ghost-btn" type="button" id="openCodeLoginBtn">الدخول بكود الإيميل</button>
+        <button class="ghost-btn" type="button" id="openSignupBtn">إنشاء حساب جديد</button>
+        <button class="ghost-btn" type="button" id="openVerifyBtn">تفعيل حساب</button>
+        <p id="loginError"></p>
+      </form>
+
+      <form class="login-card" id="codeLoginRequestForm" hidden>
+        <h3>الدخول بكود الإيميل</h3>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" value="admin@example.com" required />
+        </label>
+        <button class="primary-btn" type="submit">إرسال كود الدخول</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromCodeRequest">رجوع للدخول</button>
+        <p id="codeRequestMsg"></p>
+      </form>
+
+      <form class="login-card" id="codeLoginVerifyForm" hidden>
+        <h3>تأكيد كود الدخول</h3>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          كود الدخول
+          <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required />
+        </label>
+        <button class="primary-btn" type="submit">دخول</button>
+        <button class="ghost-btn" type="button" id="backToCodeRequest">طلب كود جديد</button>
+        <p id="codeVerifyMsg"></p>
+      </form>
+
+      <form class="login-card" id="signupForm" hidden>
+        <h3>إنشاء حساب جديد</h3>
+        <label>
+          الاسم
+          <input name="name" type="text" required />
+        </label>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          كلمة المرور
+          <input name="password" type="password" minlength="6" required />
+        </label>
+        <button class="primary-btn" type="submit">إرسال كود التحقق</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromSignup">رجوع للدخول</button>
+        <p id="signupMsg"></p>
+      </form>
+
+      <form class="login-card" id="verifyForm" hidden>
+        <h3>تفعيل الحساب</h3>
+        <label>
+          البريد الإلكتروني
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          كود التحقق
+          <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required />
+        </label>
+        <button class="primary-btn" type="submit">تفعيل الحساب</button>
+        <button class="ghost-btn" type="button" id="backToLoginFromVerify">رجوع للدخول</button>
+        <p id="verifyMsg"></p>
+      </form>
+    </main>
+  `;
+
+  const loginForm = document.getElementById("loginForm");
+  const codeLoginRequestForm = document.getElementById("codeLoginRequestForm");
+  const codeLoginVerifyForm = document.getElementById("codeLoginVerifyForm");
+  const signupForm = document.getElementById("signupForm");
+  const verifyForm = document.getElementById("verifyForm");
+  const showForm = (target) => {
+    loginForm.hidden = target !== "login";
+    codeLoginRequestForm.hidden = target !== "code-request";
+    codeLoginVerifyForm.hidden = target !== "code-verify";
+    signupForm.hidden = target !== "signup";
+    verifyForm.hidden = target !== "verify";
+  };
+
+  document.getElementById("openCodeLoginBtn").addEventListener("click", () => {
+    codeLoginRequestForm.email.value = loginForm.email.value;
+    showForm("code-request");
+  });
+  document.getElementById("openSignupBtn").addEventListener("click", () => showForm("signup"));
+  document.getElementById("openVerifyBtn").addEventListener("click", () => showForm("verify"));
+  document.getElementById("backToLoginFromCodeRequest").addEventListener("click", () => showForm("login"));
+  document.getElementById("backToCodeRequest").addEventListener("click", () => showForm("code-request"));
+  document.getElementById("backToLoginFromSignup").addEventListener("click", () => showForm("login"));
+  document.getElementById("backToLoginFromVerify").addEventListener("click", () => showForm("login"));
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+      const result = await apiFetch("/api/login", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.value, password: form.password.value }),
+      });
+      finishLogin(result);
+    } catch (error) {
+      document.getElementById("loginError").textContent = error.message || "فشل تسجيل الدخول";
+    }
+  });
+
+  codeLoginRequestForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("codeRequestMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/login/request-code", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.value }),
+      });
+      msg.textContent = result.delivery === "code" && result.debugCode ? `كود الدخول: ${result.debugCode}` : (result.message || "تم إرسال كود الدخول");
+      codeLoginVerifyForm.email.value = form.email.value;
+      codeLoginVerifyForm.code.value = result.debugCode || "";
+      showForm("code-verify");
+      codeLoginVerifyForm.code.focus();
+    } catch (error) {
+      msg.textContent = error.message || "تعذر إرسال كود الدخول";
+    }
+  });
+
+  codeLoginVerifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("codeVerifyMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/login/verify-code", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.value, code: form.code.value }),
+      });
+      finishLogin(result);
+    } catch (error) {
+      msg.textContent = error.message || "فشل تأكيد كود الدخول";
+    }
+  });
+
+  signupForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("signupMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/signup", {
+        method: "POST",
+        body: JSON.stringify({ name: form.name.value, email: form.email.value, password: form.password.value }),
+      });
+      msg.textContent = result.delivery === "code" && result.debugCode ? `كود التفعيل: ${result.debugCode}` : (result.message || "تم إرسال كود التحقق");
+      verifyForm.email.value = form.email.value;
+      verifyForm.code.value = result.debugCode || "";
+      showForm("verify");
+      verifyForm.code.focus();
+    } catch (error) {
+      msg.textContent = error.message || "تعذر إنشاء الحساب";
+    }
+  });
+
+  verifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const msg = document.getElementById("verifyMsg");
+    msg.textContent = "";
+    try {
+      const result = await apiFetch("/api/verify-email", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email.value, code: form.code.value }),
+      });
+      msg.textContent = result.message || "تم التفعيل. يمكنك تسجيل الدخول الآن.";
+      showForm("login");
+      loginForm.email.value = form.email.value;
+      loginForm.password.focus();
+    } catch (error) {
+      msg.textContent = error.message || "فشل التفعيل";
+    }
+  });
+}
+
+function finishLogin(result) {
+  authToken = result.token;
+  authUser = result.user;
+  localStorage.setItem("invoice_auth_token", authToken);
+  location.reload();
 }
 
 async function apiFetch(path, options = {}) {

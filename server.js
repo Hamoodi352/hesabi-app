@@ -30,6 +30,8 @@ bootstrap()
       try {
         const url = new URL(req.url, `http://${req.headers.host}`);
         if (url.pathname === "/api/login" && req.method === "POST") return login(req, res);
+        if (url.pathname === "/api/login/request-code" && req.method === "POST") return requestEmailLoginCode(req, res);
+        if (url.pathname === "/api/login/verify-code" && req.method === "POST") return verifyEmailLoginCode(req, res);
         if (url.pathname === "/api/signup" && req.method === "POST") return signup(req, res);
         if (url.pathname === "/api/verify-email" && req.method === "POST") return verifyEmail(req, res);
         if (url.pathname === "/api/password/request-reset" && req.method === "POST") return requestPasswordReset(req, res);
@@ -67,9 +69,79 @@ async function login(req, res) {
   const { email, password } = JSON.parse(body || "{}");
   const user = db.users.find((item) => item.email === email);
   if (!user || user.active === false || user.emailVerified === false || !verifyPassword(password || "", user)) return json(res, 401, { error: "بيانات الدخول غير صحيحة أو الحساب غير فعال/غير مؤكد" });
+  return createLoginSession(res, user);
+}
+
+async function requestEmailLoginCode(req, res) {
+  const body = await readBody(req);
+  const { email } = JSON.parse(body || "{}");
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) return json(res, 400, { error: "البريد الإلكتروني مطلوب" });
+
+  const db = await readDb();
+  const user = db.users.find((item) => String(item.email || "").toLowerCase() === cleanEmail);
+  if (!user || user.active === false || user.emailVerified === false) {
+    return json(res, 404, { error: "لا يوجد حساب فعال بهذا البريد" });
+  }
+
+  db.loginEmailCodes ||= [];
+  db.loginEmailCodes = db.loginEmailCodes.filter((item) => String(item.email || "").toLowerCase() !== cleanEmail);
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeSalt = crypto.randomBytes(12).toString("hex");
+  db.loginEmailCodes.push({
+    email: cleanEmail,
+    codeHash: hashPassword(code, codeSalt),
+    codeSalt,
+    attempts: 0,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+  });
+  await writeDb(bumpRevision(db));
+
+  const delivered = await sendEmailCode(cleanEmail, code, "Login code", "Login code");
+  if (!delivered) {
+    return json(res, 200, {
+      ok: true,
+      delivery: "code",
+      debugCode: code,
+      smtpConfigured: isSmtpConfigured(),
+      message: isSmtpConfigured()
+        ? "تعذر إرسال الإيميل. استخدم الكود المؤقت الظاهر هنا."
+        : "إرسال الإيميل غير مفعّل على السيرفر. استخدم الكود المؤقت الظاهر هنا.",
+    });
+  }
+  return json(res, 200, { ok: true, delivery: "email", smtpConfigured: true, message: "تم إرسال كود الدخول إلى بريدك الإلكتروني." });
+}
+
+async function verifyEmailLoginCode(req, res) {
+  const body = await readBody(req);
+  const { email, code } = JSON.parse(body || "{}");
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanCode = String(code || "").trim();
+  const db = await readDb();
+  db.loginEmailCodes ||= [];
+  const loginCode = db.loginEmailCodes.find((item) => String(item.email || "").toLowerCase() === cleanEmail);
+  const user = db.users.find((item) => String(item.email || "").toLowerCase() === cleanEmail);
+  if (!loginCode || !user || user.active === false || user.emailVerified === false) return json(res, 400, { error: "طلب الدخول غير موجود أو الحساب غير فعال" });
+  if (Date.now() > Number(loginCode.expiresAt || 0)) {
+    db.loginEmailCodes = db.loginEmailCodes.filter((item) => String(item.email || "").toLowerCase() !== cleanEmail);
+    await writeDb(bumpRevision(db));
+    return json(res, 400, { error: "انتهت صلاحية كود الدخول" });
+  }
+  if (Number(loginCode.attempts || 0) >= 5) return json(res, 429, { error: "تم تجاوز عدد المحاولات. اطلب كود جديد" });
+  if (!timingSafeEquals(hashPassword(cleanCode, loginCode.codeSalt), loginCode.codeHash)) {
+    loginCode.attempts = Number(loginCode.attempts || 0) + 1;
+    await writeDb(bumpRevision(db));
+    return json(res, 400, { error: "كود الدخول غير صحيح" });
+  }
+  db.loginEmailCodes = db.loginEmailCodes.filter((item) => String(item.email || "").toLowerCase() !== cleanEmail);
+  await writeDb(bumpRevision(db));
+  return createLoginSession(res, user);
+}
+
+function createLoginSession(res, user) {
   const token = crypto.randomBytes(32).toString("hex");
   sessions.set(token, { userId: user.id, createdAt: Date.now() });
-  json(res, 200, { token, user: publicUser(user) });
+  return json(res, 200, { token, user: publicUser(user) });
 }
 
 async function signup(req, res) {
